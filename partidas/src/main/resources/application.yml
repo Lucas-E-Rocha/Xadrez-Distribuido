@@ -1,0 +1,32 @@
+server:
+  port: ${PORT:8080}
+
+spring:
+  application:
+    name: partidas
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/partidas}
+    username: ${DB_USER:partidas}
+    password: ${DB_PASSWORD:partidas}
+  sql:
+    init:
+      mode: always
+      continue-on-error: false
+
+xadrez:
+  aws:
+    endpoint: ${AWS_ENDPOINT_URL:}
+    region: ${AWS_REGION:us-east-1}
+    access-key: ${AWS_ACCESS_KEY_ID:test}
+    secret-key: ${AWS_SECRET_ACCESS_KEY:test}
+  mensageria:
+    fila: ${QUEUE_NAME:partidas-eventos}
+    prefixo-topico: ${TOPIC_PREFIX:xadrez-}
+  salas-total: ${SALAS_TOTAL:10}
+  # Valor padrao; se existir o parametro no SSM, ele prevalece
+  timeout-alocacao-segundos: ${TIMEOUT_ALOCACAO_SEGUNDOS:10}
+  ssm-parametro-timeout: ${SSM_PARAM_TIMEOUT:/xadrez/partidas/timeout-alocacao-segundos}
+
+logging:
+  pattern:
+    console: "%d{HH:mm:ss.SSS} %-5level [partidas] %logger{0} - %msg%n"

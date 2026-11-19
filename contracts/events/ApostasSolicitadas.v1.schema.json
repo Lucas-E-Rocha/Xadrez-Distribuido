@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "events/ApostasSolicitadas.v1.schema.json",
+  "title": "ApostasSolicitadas v1 (payload)",
+  "description": "Par formado; pede o debito da aposta dos dois jogadores",
+  "x-produtor": "Partidas",
+  "x-consumidores": "Carteira",
+  "type": "object",
+  "required": [
+    "partidaId",
+    "jogadores",
+    "valor"
+  ],
+  "properties": {
+    "partidaId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "jogadores": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "valor": {
+      "type": "integer",
+      "minimum": 0
+    }
+  }
+}

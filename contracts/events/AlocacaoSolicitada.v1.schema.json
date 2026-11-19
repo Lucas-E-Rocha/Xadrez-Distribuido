@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "events/AlocacaoSolicitada.v1.schema.json",
+  "title": "AlocacaoSolicitada v1 (payload)",
+  "description": "Pede um servidor de jogo para a sala",
+  "x-produtor": "Partidas",
+  "x-consumidores": "Alocador (dependencia simulada)",
+  "type": "object",
+  "required": [
+    "partidaId"
+  ],
+  "properties": {
+    "partidaId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "salaId": {
+      "type": "integer"
+    },
+    "timeoutSegundos": {
+      "type": "integer"
+    }
+  }
+}

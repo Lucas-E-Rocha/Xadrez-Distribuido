@@ -1,0 +1,21 @@
+{
+  "name": "carteira",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Carteira: apostas, estornos e premios",
+  "main": "carteira/src/index.js",
+  "scripts": {
+    "start": "node carteira/src/index.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@aws-sdk/client-sns": "^3.700.0",
+    "@aws-sdk/client-sqs": "^3.700.0",
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1",
+    "express": "^4.21.1",
+    "pg": "^8.13.1"
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "events/ApostasDebitadas.v1.schema.json",
+  "title": "ApostasDebitadas v1 (payload)",
+  "description": "Aposta debitada dos dois jogadores",
+  "x-produtor": "Carteira",
+  "x-consumidores": "Partidas",
+  "type": "object",
+  "required": [
+    "partidaId",
+    "jogadores",
+    "valor"
+  ],
+  "properties": {
+    "partidaId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "jogadores": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "valor": {
+      "type": "integer",
+      "minimum": 0
+    }
+  }
+}

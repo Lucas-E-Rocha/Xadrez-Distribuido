@@ -1,2 +1,6 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+# Scripts e codigo sempre com LF (rodam dentro de conteineres Linux)
+*.sh text eol=lf
+*.java text eol=lf
+*.js text eol=lf

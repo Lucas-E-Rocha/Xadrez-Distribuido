@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "events/PartidaIniciada.v1.schema.json",
+  "title": "PartidaIniciada v1 (payload)",
+  "description": "Partida comecou",
+  "x-produtor": "Partidas",
+  "x-consumidores": "Ranking/Notificacao",
+  "type": "object",
+  "required": [
+    "partidaId",
+    "brancas",
+    "pretas"
+  ],
+  "properties": {
+    "partidaId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "brancas": {
+      "type": "string",
+      "minLength": 1
+    },
+    "pretas": {
+      "type": "string",
+      "minLength": 1
+    },
+    "aposta": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "servidorId": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}

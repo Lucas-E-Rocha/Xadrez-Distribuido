@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "events/ApostasRecusadas.v1.schema.json",
+  "title": "ApostasRecusadas v1 (payload)",
+  "description": "Nao foi possivel debitar (ex.: saldo insuficiente); nada foi debitado",
+  "x-produtor": "Carteira",
+  "x-consumidores": "Partidas",
+  "type": "object",
+  "required": [
+    "partidaId",
+    "motivo"
+  ],
+  "properties": {
+    "partidaId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "motivo": {
+      "type": "string",
+      "minLength": 1
+    },
+    "jogador": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "events/PremioPago.v1.schema.json",
+  "title": "PremioPago v1 (payload)",
+  "description": "Premio creditado ao vencedor (ou aposta devolvida no empate)",
+  "x-produtor": "Carteira",
+  "x-consumidores": "Ranking/Notificacao",
+  "type": "object",
+  "required": [
+    "partidaId",
+    "jogadores",
+    "valor"
+  ],
+  "properties": {
+    "partidaId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "jogadores": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "valor": {
+      "type": "integer",
+      "minimum": 0
+    }
+  }
+}

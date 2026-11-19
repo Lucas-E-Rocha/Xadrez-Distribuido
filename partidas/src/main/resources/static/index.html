@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Xadrez Distribuído</title>
+<style>
+  :root { --claro:#eeeed2; --escuro:#769656; --sel:#f6f669; --mov:#baca44; --txt:#1d1d1f; --mut:#6b6b70; }
+  * { box-sizing: border-box; }
+  body { font-family: system-ui, Segoe UI, Arial, sans-serif; margin: 0; background:#f4f4f5; color: var(--txt); }
+  header { background:#262421; color:#fff; padding: 12px 20px; display:flex; gap:16px; align-items:center; }
+  header h1 { font-size: 18px; margin:0; font-weight:600; }
+  main { display:grid; grid-template-columns: minmax(320px, 560px) 1fr; gap: 20px; padding: 20px; max-width: 1100px; margin: 0 auto; }
+  .card { background:#fff; border-radius: 10px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,.08); margin-bottom: 16px; }
+  .card h2 { font-size: 14px; text-transform: uppercase; letter-spacing: .04em; color: var(--mut); margin: 0 0 10px; }
+  label { font-size: 13px; color: var(--mut); display:block; margin-bottom: 4px; }
+  input { width:100%; padding: 8px 10px; border:1px solid #d4d4d8; border-radius: 6px; font-size: 14px; margin-bottom: 10px; }
+  button { background:#262421; color:#fff; border:0; padding: 9px 14px; border-radius: 6px; font-size:14px; cursor:pointer; }
+  button.sec { background:#e4e4e7; color: var(--txt); }
+  button:disabled { opacity:.5; cursor: default; }
+  /* minmax(0, 1fr): todas as casas com o mesmo tamanho, sem esticar para caber a peca */
+  #tabuleiro { display:grid; grid-template-columns: repeat(8, minmax(0, 1fr)); grid-template-rows: repeat(8, minmax(0, 1fr));
+               aspect-ratio: 1 / 1; width: 100%; border-radius: 6px; overflow:hidden; user-select:none; container-type: inline-size; }
+  .casa { display:flex; align-items:center; justify-content:center; min-width:0; min-height:0; overflow:hidden; line-height:1;
+          font-size: clamp(22px, 5vw, 48px); font-size: 9cqw; cursor:pointer; position:relative; }
+  .casa.claro { background: var(--claro); } .casa.escuro { background: var(--escuro); }
+  .casa.sel { background: var(--sel) !important; }
+  .casa.mov::after { content:''; width: 28%; height: 28%; border-radius: 50%; background: rgba(0,0,0,.18); position:absolute; }
+  .coord { position:absolute; font-size: 10px; left: 3px; top: 2px; color: rgba(0,0,0,.45); }
+  .status { font-size: 15px; margin: 10px 0; min-height: 22px; }
+  .linha { display:flex; gap: 8px; align-items:center; flex-wrap: wrap; }
+  .mut { color: var(--mut); font-size: 13px; }
+  ul { padding-left: 18px; margin: 0; font-size: 13px; } li { margin-bottom: 4px; }
+  table { width:100%; border-collapse: collapse; font-size: 13px; } td, th { text-align:left; padding: 4px 6px; border-bottom: 1px solid #eee; }
+  .saldo { font-size: 26px; font-weight: 600; }
+  @media (max-width: 800px) { main { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<header><h1>♞ Xadrez Distribuído</h1><span class="mut" style="color:#bbb">Partidas ranqueadas valendo moedas</span></header>
+<main>
+  <section>
+    <div class="card">
+      <div id="tabuleiro"></div>
+      <div class="status" id="status">Entre na fila para jogar.</div>
+      <div class="linha">
+        <button class="sec" id="btnDesistir" disabled>Desistir</button>
+        <span class="mut" id="lances"></span>
+      </div>
+    </div>
+  </section>
+  <section>
+    <div class="card">
+      <h2>Jogador</h2>
+      <label for="jogador">Nome (abra outra aba com outro nome para jogar contra você mesmo)</label>
+      <input id="jogador" placeholder="ex.: ana">
+      <label for="aposta">Aposta (moedas)</label>
+      <input id="aposta" type="number" min="0" value="50">
+      <div class="linha"><button id="btnFila">Entrar na fila</button><span class="mut" id="ticket"></span></div>
+    </div>
+    <div class="card"><h2>Carteira</h2><div class="saldo" id="saldo">–</div></div>
+    <div class="card"><h2>Notificações</h2><ul id="notificacoes"><li class="mut">nenhuma</li></ul></div>
+    <div class="card"><h2>Ranking</h2><table id="ranking"></table></div>
+  </section>
+</main>
+<script>
+const API = location.origin;
+const host = location.hostname;
+const CARTEIRA = `http://${host}:3001`;
+const RANKING = `http://${host}:3010`;
+const PECAS = { wK:'♔', wQ:'♕', wR:'♖', wB:'♗', wN:'♘', wP:'♙', bK:'♚', bQ:'♛', bR:'♜', bB:'♝', bN:'♞', bP:'♟' };
+
+const params = new URLSearchParams(location.search);
+const $ = (id) => document.getElementById(id);
+$('jogador').value = params.get('jogador') || '';
+
+let ticketId = null, partidaId = null, estado = null, selecionada = null, destinos = [];
+
+async function api(url, opts = {}) {
+  const r = await fetch(url, { headers: { 'Content-Type': 'application/json' }, ...opts });
+  const corpo = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(corpo.erro || `HTTP ${r.status}`);
+  return corpo;
+}
+const jogador = () => $('jogador').value.trim();
+
+$('btnFila').onclick = async () => {
+  if (!jogador()) { $('status').textContent = 'Informe seu nome.'; return; }
+  try {
+    const r = await api(`${API}/api/fila`, { method: 'POST', body: JSON.stringify({ jogadorId: jogador(), aposta: Number($('aposta').value) }) });
+    ticketId = r.ticketId; partidaId = null; estado = null;
+    $('ticket').textContent = `ticket ${ticketId.slice(0, 8)}… (202 Accepted)`;
+    $('status').textContent = 'Na fila, esperando adversário...';
+    $('btnFila').disabled = true;
+  } catch (e) { $('status').textContent = e.message; }
+};
+
+$('btnDesistir').onclick = async () => {
+  if (!partidaId || !confirmarDesistencia()) return;
+  try { estado = await api(`${API}/api/partidas/${partidaId}/desistir`, { method: 'POST', body: JSON.stringify({ jogadorId: jogador() }) }); render(); }
+  catch (e) { $('status').textContent = e.message; }
+};
+function confirmarDesistencia() { $('btnDesistir').textContent = 'Desistindo...'; return true; }
+
+async function pollTicket() {
+  if (!ticketId || partidaId) return;
+  try {
+    const t = await api(`${API}/api/fila/${ticketId}`);
+    const txt = { AGUARDANDO: 'Na fila, esperando adversário...', PAREADO: 'Adversário encontrado! Debitando apostas e alocando servidor...' };
+    if (t.status === 'RECUSADO' || t.status === 'CANCELADO') {
+      $('status').textContent = `Ticket ${t.status.toLowerCase()}: ${t.motivo || ''}`;
+      ticketId = null; $('btnFila').disabled = false;
+    } else {
+      $('status').textContent = txt[t.status] || t.status;
+    }
+    if (t.partidaId && t.statusPartida && t.statusPartida !== 'PENDENTE_APOSTAS' && t.statusPartida !== 'ALOCANDO_SERVIDOR') {
+      partidaId = t.partidaId;
+    }
+  } catch (e) { $('status').textContent = e.message; }
+}
+
+async function pollPartida() {
+  if (!partidaId) return;
+  try { estado = await api(`${API}/api/partidas/${partidaId}`); render(); } catch (e) { $('status').textContent = e.message; }
+}
+
+function souPretas() { return estado && estado.pretas === jogador(); }
+
+function render() {
+  const tab = $('tabuleiro'); tab.innerHTML = '';
+  const t = estado ? estado.tabuleiro : inicial();
+  const linhas = [...Array(8).keys()], colunas = [...Array(8).keys()];
+  if (souPretas()) { linhas.reverse(); colunas.reverse(); }
+  for (const i of linhas) for (const j of colunas) {
+    const nome = String.fromCharCode(97 + j) + (8 - i);
+    const d = document.createElement('div');
+    d.className = 'casa ' + ((i + j) % 2 ? 'escuro' : 'claro');
+    if (nome === selecionada) d.classList.add('sel');
+    if (destinos.includes(nome)) d.classList.add('mov');
+    d.textContent = t[i][j] ? PECAS[t[i][j]] : '';
+    if ((souPretas() ? j === 7 : j === 0)) { const c = document.createElement('span'); c.className = 'coord'; c.textContent = 8 - i; d.appendChild(c); }
+    d.onclick = () => clicar(nome);
+    tab.appendChild(d);
+  }
+  if (!estado) return;
+  const fim = estado.status !== 'EM_ANDAMENTO';
+  $('btnDesistir').disabled = fim; $('btnDesistir').textContent = 'Desistir';
+  $('lances').textContent = estado.lances.length ? `${estado.lances.length} lances: ${estado.lances.slice(-6).join(' ')}` : '';
+  if (fim) {
+    const r = estado.vencedor ? (estado.vencedor === jogador() ? 'Você venceu!' : `${estado.vencedor} venceu.`) : 'Empate.';
+    $('status').textContent = estado.status === 'FINALIZADA' ? `${r} (${estado.motivo})` : `Partida ${estado.status.toLowerCase()}: ${estado.motivo || ''}`;
+    ticketId = null; $('btnFila').disabled = false;
+  } else {
+    const cor = souPretas() ? 'pretas' : 'brancas';
+    const vez = estado.vez === jogador() ? 'Sua vez' : `Vez de ${estado.vez}`;
+    $('status').textContent = `${estado.brancas} × ${estado.pretas} · você joga de ${cor} · ${vez}${estado.xeque ? ' · XEQUE!' : ''}`;
+  }
+}
+
+async function clicar(casa) {
+  if (!estado || estado.status !== 'EM_ANDAMENTO' || estado.vez !== jogador()) return;
+  if (selecionada && destinos.includes(casa)) {
+    const [origem, destino] = [selecionada, casa];
+    selecionada = null; destinos = [];
+    let promocao = null;
+    const [li, co] = [8 - Number(origem[1]), origem.charCodeAt(0) - 97];
+    const peca = estado.tabuleiro[li][co];
+    if (peca && peca[1] === 'P' && (destino[1] === '8' || destino[1] === '1')) {
+      promocao = (prompt('Promover para (Q, R, B, N):', 'Q') || 'Q').toUpperCase();
+    }
+    try { estado = await api(`${API}/api/partidas/${partidaId}/jogadas`, { method: 'POST', body: JSON.stringify({ jogadorId: jogador(), origem, destino, promocao }) }); }
+    catch (e) { $('status').textContent = e.message; }
+    render(); return;
+  }
+  try {
+    destinos = await api(`${API}/api/partidas/${partidaId}/movimentos?origem=${casa}`);
+    const [li, co] = [8 - Number(casa[1]), casa.charCodeAt(0) - 97];
+    const peca = estado.tabuleiro[li][co];
+    const minha = peca && (peca[0] === 'w') === !souPretas();
+    selecionada = minha ? casa : null; if (!minha) destinos = [];
+  } catch { selecionada = null; destinos = []; }
+  render();
+}
+
+function inicial() {
+  const l = (c, ps) => ps.map((p) => c + p);
+  const nobre = ['R','N','B','Q','K','B','N','R'];
+  return [l('b', nobre), l('b', Array(8).fill('P')), ...Array(4).fill(Array(8).fill(null)), l('w', Array(8).fill('P')), l('w', nobre)];
+}
+
+async function pollLaterais() {
+  if (!jogador()) return;
+  try { const c = await api(`${CARTEIRA}/carteiras/${encodeURIComponent(jogador())}`); $('saldo').textContent = `${c.saldo} moedas`; } catch { $('saldo').textContent = 'carteira indisponível'; }
+  try {
+    const n = await api(`${RANKING}/notificacoes/${encodeURIComponent(jogador())}`);
+    $('notificacoes').innerHTML = n.length ? n.slice(0, 8).map((x) => `<li>${esc(x.mensagem)}</li>`).join('') : '<li class="mut">nenhuma</li>';
+  } catch { /* ranking fora do ar: o jogo continua */ }
+  try {
+    const r = await api(`${RANKING}/ranking`);
+    $('ranking').innerHTML = '<tr><th>#</th><th>Jogador</th><th>Elo</th><th>V/D/E</th></tr>' +
+      r.slice(0, 10).map((x, i) => `<tr><td>${i + 1}</td><td>${esc(x.jogador_id)}</td><td>${x.rating}</td><td>${x.vitorias}/${x.derrotas}/${x.empates}</td></tr>`).join('');
+  } catch { /* idem */ }
+}
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
+
+render();
+setInterval(pollTicket, 1000);
+setInterval(pollPartida, 1000);
+setInterval(pollLaterais, 3000);
+pollLaterais();
+</script>
+</body>
+</html>

@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "events/PartidaFinalizada.v1.schema.json",
+  "title": "PartidaFinalizada v1 (payload)",
+  "description": "Fim de jogo: Carteira paga o premio, Ranking atualiza o Elo e salva o historico",
+  "x-produtor": "Partidas",
+  "x-consumidores": "Carteira, Ranking/Notificacao",
+  "type": "object",
+  "required": [
+    "partidaId",
+    "jogadores",
+    "empate",
+    "valor",
+    "motivo"
+  ],
+  "properties": {
+    "partidaId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "brancas": {
+      "type": "string",
+      "minLength": 1
+    },
+    "pretas": {
+      "type": "string",
+      "minLength": 1
+    },
+    "jogadores": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "vencedor": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "perdedor": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "empate": {
+      "type": "boolean"
+    },
+    "valor": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "motivo": {
+      "type": "string",
+      "minLength": 1
+    },
+    "lances": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

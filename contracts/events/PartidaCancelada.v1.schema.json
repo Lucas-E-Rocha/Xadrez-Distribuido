@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "events/PartidaCancelada.v1.schema.json",
+  "title": "PartidaCancelada v1 (payload)",
+  "description": "Compensacao: partida cancelada; Carteira estorna se havia debito",
+  "x-produtor": "Partidas",
+  "x-consumidores": "Carteira, Ranking/Notificacao",
+  "type": "object",
+  "required": [
+    "partidaId",
+    "jogadores",
+    "valor",
+    "apostasDebitadas",
+    "motivo"
+  ],
+  "properties": {
+    "partidaId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "jogadores": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "valor": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "apostasDebitadas": {
+      "type": "boolean"
+    },
+    "motivo": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}

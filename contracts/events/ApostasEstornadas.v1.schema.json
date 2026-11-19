@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "events/ApostasEstornadas.v1.schema.json",
+  "title": "ApostasEstornadas v1 (payload)",
+  "description": "Apostas devolvidas apos cancelamento",
+  "x-produtor": "Carteira",
+  "x-consumidores": "Ranking/Notificacao",
+  "type": "object",
+  "required": [
+    "partidaId",
+    "jogadores",
+    "valor"
+  ],
+  "properties": {
+    "partidaId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "jogadores": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "valor": {
+      "type": "integer",
+      "minimum": 0
+    }
+  }
+}

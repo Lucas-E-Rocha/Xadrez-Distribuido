@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "events/ServidorAlocado.v1.schema.json",
+  "title": "ServidorAlocado v1 (payload)",
+  "description": "Servidor de jogo pronto (pode chegar atrasado: F7)",
+  "x-produtor": "Alocador (dependencia simulada)",
+  "x-consumidores": "Partidas",
+  "type": "object",
+  "required": [
+    "partidaId",
+    "servidorId"
+  ],
+  "properties": {
+    "partidaId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "servidorId": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "events/AlocacaoFalhou.v1.schema.json",
+  "title": "AlocacaoFalhou v1 (payload)",
+  "description": "Falha ao alocar servidor; dispara a compensacao (F1)",
+  "x-produtor": "Alocador (dependencia simulada)",
+  "x-consumidores": "Partidas",
+  "type": "object",
+  "required": [
+    "partidaId",
+    "motivo"
+  ],
+  "properties": {
+    "partidaId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "motivo": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}

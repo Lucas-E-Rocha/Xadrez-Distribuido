@@ -1,0 +1,157 @@
+# Sobe tudo com:  docker compose up --build
+# Endpoints, credenciais e nomes de filas vem de variaveis de ambiente (veja .env.example).
+
+x-aws-env: &aws-env
+  AWS_ENDPOINT_URL: ${AWS_ENDPOINT_URL:-http://ministack:4566}
+  AWS_REGION: ${AWS_REGION:-us-east-1}
+  AWS_DEFAULT_REGION: ${AWS_REGION:-us-east-1}
+  AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-test}
+  AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-test}
+  TOPIC_PREFIX: ${TOPIC_PREFIX:-xadrez-}
+
+x-postgres: &postgres
+  image: postgres:16-alpine
+  healthcheck:
+    test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+    interval: 3s
+    timeout: 3s
+    retries: 20
+
+services:
+  # ---------------------------------------------------------------- nuvem emulada
+  ministack:
+    image: ministackorg/ministack:latest
+    ports:
+      - "4566:4566"
+    environment:
+      PERSIST_STATE: "1"   # filas, topicos e parametros sobrevivem a docker compose stop/start (F6)
+      S3_PERSIST: "1"
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c \"import urllib.request;urllib.request.urlopen('http://localhost:4566/_ministack/health')\" || wget -qO- http://localhost:4566/_ministack/health || curl -fs http://localhost:4566/_ministack/health"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+
+  init:
+    image: amazon/aws-cli:2.22.0
+    depends_on:
+      ministack:
+        condition: service_healthy
+    environment:
+      <<: *aws-env
+      MAX_RECEIVE_COUNT: ${MAX_RECEIVE_COUNT:-3}
+      VISIBILITY_TIMEOUT: ${VISIBILITY_TIMEOUT:-15}
+      TIMEOUT_ALOCACAO_SEGUNDOS: ${TIMEOUT_ALOCACAO_SEGUNDOS:-10}
+      ELO_K: ${ELO_K:-32}
+    volumes:
+      - ./infra:/infra:ro
+    entrypoint: ["bash", "/infra/init.sh"]
+    restart: "no"
+
+  # Ferramenta para os scripts de demonstracao (nao sobe com o "up"): docker compose run --rm awscli ...
+  awscli:
+    image: amazon/aws-cli:2.22.0
+    profiles: ["tools"]
+    environment:
+      <<: *aws-env
+
+  # ---------------------------------------------------------------- bancos (um por servico)
+  db-partidas:
+    <<: *postgres
+    environment:
+      POSTGRES_DB: partidas
+      POSTGRES_USER: partidas
+      POSTGRES_PASSWORD: ${DB_PARTIDAS_PASSWORD:-partidas}
+
+  db-carteira:
+    <<: *postgres
+    environment:
+      POSTGRES_DB: carteira
+      POSTGRES_USER: carteira
+      POSTGRES_PASSWORD: ${DB_CARTEIRA_PASSWORD:-carteira}
+
+  db-ranking:
+    <<: *postgres
+    environment:
+      POSTGRES_DB: ranking
+      POSTGRES_USER: ranking
+      POSTGRES_PASSWORD: ${DB_RANKING_PASSWORD:-ranking}
+
+  # ---------------------------------------------------------------- microsservicos
+  partidas:              # Java / Spring Boot
+    build:
+      context: .
+      dockerfile: partidas/Dockerfile
+    depends_on:
+      init:
+        condition: service_completed_successfully
+      db-partidas:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    environment:
+      <<: *aws-env
+      DB_URL: jdbc:postgresql://db-partidas:5432/partidas
+      DB_USER: partidas
+      DB_PASSWORD: ${DB_PARTIDAS_PASSWORD:-partidas}
+      QUEUE_NAME: partidas-eventos
+      SALAS_TOTAL: ${SALAS_TOTAL:-10}
+      TIMEOUT_ALOCACAO_SEGUNDOS: ${TIMEOUT_ALOCACAO_SEGUNDOS:-10}
+    restart: unless-stopped
+
+  carteira:              # Node.js  (R4: 2 replicas consumindo a mesma fila)
+    build:
+      context: .
+      dockerfile: carteira/Dockerfile
+    deploy:
+      replicas: ${CARTEIRA_REPLICAS:-2}
+    depends_on:
+      init:
+        condition: service_completed_successfully
+      db-carteira:
+        condition: service_healthy
+    ports:
+      - "3001-3005:3000"
+    environment:
+      <<: *aws-env
+      DATABASE_URL: postgres://carteira:${DB_CARTEIRA_PASSWORD:-carteira}@db-carteira:5432/carteira
+      QUEUE_NAME: carteira-eventos
+      SALDO_INICIAL: ${SALDO_INICIAL:-1000}
+      ATRASO_PROCESSAMENTO_MS: ${ATRASO_PROCESSAMENTO_MS:-0}
+    restart: unless-stopped
+
+  ranking:               # Node.js
+    build:
+      context: .
+      dockerfile: ranking/Dockerfile
+    depends_on:
+      init:
+        condition: service_completed_successfully
+      db-ranking:
+        condition: service_healthy
+    ports:
+      - "3010:3000"
+    environment:
+      <<: *aws-env
+      DATABASE_URL: postgres://ranking:${DB_RANKING_PASSWORD:-ranking}@db-ranking:5432/ranking
+      QUEUE_NAME: ranking-eventos
+      S3_BUCKET: ${S3_BUCKET:-xadrez-historico}
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------- dependencia instavel simulada (R5)
+  alocador-sim:
+    build:
+      context: .
+      dockerfile: alocador-sim/Dockerfile
+    depends_on:
+      init:
+        condition: service_completed_successfully
+    ports:
+      - "3020:3000"
+    environment:
+      <<: *aws-env
+      QUEUE_NAME: alocador-solicitacoes
+      LATENCIA_MS: ${LATENCIA_MS:-1500}
+      JITTER_MS: ${JITTER_MS:-500}
+      TAXA_FALHA: ${TAXA_FALHA:-0.2}
+    restart: unless-stopped
