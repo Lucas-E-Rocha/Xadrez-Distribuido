@@ -135,12 +135,16 @@ async function migrar(pool, sql) {
   }
 }
 
-const SQL_MENSAGERIA = `
+// Tabela de idempotencia: todo servico que consome mensagens precisa dela.
+const SQL_PROCESSADAS = `
 CREATE TABLE IF NOT EXISTS processed_messages (
   message_id    TEXT PRIMARY KEY,
   type          TEXT,
   processado_em TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+`;
+// Outbox: so para servicos que publicam eventos.
+const SQL_OUTBOX = `
 CREATE TABLE IF NOT EXISTS outbox (
   id         BIGSERIAL PRIMARY KEY,
   message_id TEXT NOT NULL UNIQUE,
@@ -151,6 +155,7 @@ CREATE TABLE IF NOT EXISTS outbox (
 );
 CREATE INDEX IF NOT EXISTS ix_outbox_pendente ON outbox (id) WHERE enviado_em IS NULL;
 `;
+const SQL_MENSAGERIA = SQL_PROCESSADAS + SQL_OUTBOX;
 
 // ---------------------------------------------------------------- outbox
 /** Grava o evento no outbox usando o client da transacao atual (mesma transacao do efeito). */
@@ -274,6 +279,6 @@ function cors(req, res, next) {
 module.exports = {
   log, REPLICA, sns, sqs, awsConfig,
   criarEnvelope, validar, MensagemInvalida, publicar,
-  comTransacao, migrar, SQL_MENSAGERIA,
+  comTransacao, migrar, SQL_MENSAGERIA, SQL_PROCESSADAS, SQL_OUTBOX,
   gravarNoOutbox, iniciarRelayOutbox, iniciarConsumidor, dormir, cors,
 };

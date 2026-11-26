@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS notificacoes (
   criado_em  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS ix_notif_jogador ON notificacoes (jogador_id, id DESC);
-${c.SQL_MENSAGERIA}`;
+${c.SQL_PROCESSADAS}`; // o Ranking so consome eventos: nao precisa de outbox
 
 async function notificar(client, jogadores, partidaId, mensagem) {
   for (const j of jogadores) {

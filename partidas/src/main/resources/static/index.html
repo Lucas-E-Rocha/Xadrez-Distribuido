@@ -26,7 +26,10 @@
   .casa.claro { background: var(--claro); } .casa.escuro { background: var(--escuro); }
   .casa.sel { background: var(--sel) !important; }
   .casa.mov::after { content:''; width: 28%; height: 28%; border-radius: 50%; background: rgba(0,0,0,.18); position:absolute; }
-  .coord { position:absolute; font-size: 10px; left: 3px; top: 2px; color: rgba(0,0,0,.45); }
+  .coord { position:absolute; font-size: clamp(11px, 2.4cqw, 15px); font-weight: 600; line-height: 1; }
+  .coord.num { left: 4px; top: 3px; }
+  .coord.letra { right: 4px; bottom: 3px; }
+  .casa.claro .coord { color: var(--escuro); } .casa.escuro .coord { color: var(--claro); }
   .status { font-size: 15px; margin: 10px 0; min-height: 22px; }
   .linha { display:flex; gap: 8px; align-items:center; flex-wrap: wrap; }
   .mut { color: var(--mut); font-size: 13px; }
@@ -100,7 +103,7 @@ $('btnDesistir').onclick = async () => {
   try { estado = await api(`${API}/api/partidas/${partidaId}/desistir`, { method: 'POST', body: JSON.stringify({ jogadorId: jogador() }) }); render(); }
   catch (e) { $('status').textContent = e.message; }
 };
-function confirmarDesistencia() { $('btnDesistir').textContent = 'Desistindo...'; return true; }
+function confirmarDesistencia() { return confirm('Desistir da partida? O adversário leva o pote.'); }
 
 async function pollTicket() {
   if (!ticketId || partidaId) return;
@@ -138,7 +141,9 @@ function render() {
     if (nome === selecionada) d.classList.add('sel');
     if (destinos.includes(nome)) d.classList.add('mov');
     d.textContent = t[i][j] ? PECAS[t[i][j]] : '';
-    if ((souPretas() ? j === 7 : j === 0)) { const c = document.createElement('span'); c.className = 'coord'; c.textContent = 8 - i; d.appendChild(c); }
+    // numeros na primeira coluna visivel e letras na ultima linha visivel (como num tabuleiro real)
+    if (souPretas() ? j === 7 : j === 0) { const c = document.createElement('span'); c.className = 'coord num'; c.textContent = 8 - i; d.appendChild(c); }
+    if (souPretas() ? i === 0 : i === 7) { const c = document.createElement('span'); c.className = 'coord letra'; c.textContent = String.fromCharCode(97 + j); d.appendChild(c); }
     d.onclick = () => clicar(nome);
     tab.appendChild(d);
   }

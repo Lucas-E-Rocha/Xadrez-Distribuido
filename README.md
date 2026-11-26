@@ -13,7 +13,9 @@ O motor de xadrez é o do meu projeto pessoal (pacotes `boardgame` e `chess`). E
 
 ## Como rodar
 
-Pré-requisito: Docker Desktop.
+Pré-requisito: Docker com Docker Compose (Docker Desktop, ou Docker Engine no WSL2 do Windows).
+
+Para jogar a partir de outras máquinas da rede, siga o passo a passo em [`docs/Xadrez-Distribuido-Jogar-na-Rede.pdf`](docs/Xadrez-Distribuido-Jogar-na-Rede.pdf).
 
 ```bash
 docker compose up --build
