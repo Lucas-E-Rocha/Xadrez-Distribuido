@@ -1,0 +1,101 @@
+XADREZ DISTRIBUIDO - COMANDOS PARA RODAR OS SCRIPTS
+====================================================
+
+ANTES DE TUDO
+-------------
+1. Abra o Docker Desktop e espere "Engine running".
+2. Num terminal, na pasta do projeto, suba o sistema (deixe esse terminal aberto):
+
+   docker compose up --build
+
+3. Abra um SEGUNDO terminal no Git Bash (os scripts sao bash; nao rodam no PowerShell/CMD)
+   e entre na pasta do projeto:
+
+   cd "/c/Users/lucas/Desktop/xadrez-distribuido/Xadrez Distribuido"
+
+   (Docker no WSL: use o terminal do Ubuntu e o caminho /mnt/c/Users/lucas/...)
+
+4. Rode UM script por vez, sempre a partir da raiz do projeto.
+
+
+FLUXO FELIZ (rode primeiro)
+---------------------------
+bash scripts/jogar-partida-rapida.sh
+   Joga uma partida inteira (mate do pastor).
+   Esperado: status FINALIZADA, motivo XEQUE_MATE, premio pago, Elo atualizado,
+   historico salvo no S3.                                            ~15 s
+
+
+CENARIOS DE FALHA
+-----------------
+bash scripts/f1-compensacao.sh
+   F1 - alocador falha 100% (TAXA_FALHA=1).
+   Esperado: APOSTA -100 e depois ESTORNO +100; saldo final igual ao inicial;
+   sala liberada; jogador notificado.                                 ~20 s
+
+bash scripts/f2-servico-morre.sh
+   F2 - docker kill na replica da Carteira no meio do debito.
+   Esperado: exatamente uma APOSTA por jogador, feita pela outra replica;
+   a replica morta volta sozinha.                                     ~1 min
+
+bash scripts/f3-duplicada.sh
+   F3 - mesma mensagem (mesmo messageId) publicada 5 vezes.
+   Esperado: saldo sobe uma vez so; vezes_processada = 1.             ~15 s
+
+bash scripts/f4-venenosa.sh
+   F4 - mensagem com payload invalido.
+   Esperado: 3 tentativas nos logs, depois 1 mensagem em cada DLQ;
+   uma partida normal continua funcionando.                           ~1,5 min
+
+bash scripts/f5-corrida.sh
+   F5 - 100 jogadores ao mesmo tempo para 10 salas.
+   Esperado: 10 partidas criadas, 80 tickets RECUSADO;
+   a consulta "sala com duas partidas" volta vazia.                   ~20 s
+
+bash scripts/f6-broker-fora.sh
+   F6 - MiniStack parado por 30 segundos.
+   Esperado: eventos presos no outbox durante a queda; depois
+   pendentes = 0 e logs de reconexao.                                 ~1 min
+
+bash scripts/f7-resposta-tardia.sh
+   F7 - latencia do alocador (15 s) maior que o prazo (10 s).
+   Esperado: partida cancelada por TIMEOUT_ALOCACAO com estorno;
+   log RESULTADO_TARDIO no alocador (servidor atrasado liberado).    ~40 s
+
+bash scripts/f8-escala.sh
+   F8 - Carteira com 3 replicas.
+   Esperado: lancamentos divididos entre as replicas; duplicados = 0. ~40 s
+
+
+COMANDOS UTEIS
+--------------
+Ver logs ao vivo (bom deixar num terceiro terminal na apresentacao):
+   docker compose logs -f partidas carteira
+
+Seguir uma partida inteira pelos logs (id da partida = correlationId):
+   docker compose logs -f | grep <partidaId>
+
+Restaurar tudo ao normal se interromper um script no meio (Ctrl+C):
+   docker compose up -d
+
+Desligar as falhas do alocador para a demonstracao do jogo:
+   TAXA_FALHA=0 docker compose up -d --no-deps alocador-sim
+
+Reconstruir depois de mudar o codigo:
+   docker compose up -d --build partidas ranking
+
+Parar tudo:
+   docker compose down
+
+Parar e apagar os bancos (comecar do zero):
+   docker compose down -v
+
+
+OBSERVACOES
+-----------
+- Os scripts mudam variaveis (TAXA_FALHA, latencia, replicas) quando precisam
+  e voltam ao normal no final.
+- Rode um de cada vez: o F5 ocupa as 10 salas e so libera no final.
+- A primeira execucao baixa a imagem do aws-cli e demora um pouco mais.
+- Os jogadores criados pelos scripts tem um numero no final do nome
+  (ex.: ana1795657945) para cada execucao comecar do zero.
